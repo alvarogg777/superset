@@ -1,0 +1,607 @@
+---
+# Source: superset/templates/secret-env.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: superset-env
+  labels:
+    app: superset
+    chart: superset-0.1.5
+    release: "superset"
+    heritage: "Helm"
+type: Opaque
+stringData:
+    REDIS_HOST: "superset-redis"
+    REDIS_PORT: "6379"
+---
+# Source: superset/templates/secret-superset-config.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: superset-config
+  labels:
+    app: superset
+    chart: superset-0.1.5
+    release: "superset"
+    heritage: "Helm"
+type: Opaque
+stringData:
+  superset_config.py: |
+    
+    import os
+    from cachelib.redis import RedisCache
+    
+    def env(key, default=None):
+        return os.getenv(key, default)
+    
+    MAPBOX_API_KEY = env('MAPBOX_API_KEY', '')
+    CACHE_CONFIG = {
+          'CACHE_TYPE': 'redis',
+          'CACHE_DEFAULT_TIMEOUT': 300,
+          'CACHE_KEY_PREFIX': 'superset_',
+          'CACHE_REDIS_HOST': env('REDIS_HOST'),
+          'CACHE_REDIS_PORT': env('REDIS_PORT'),
+          'CACHE_REDIS_PASSWORD': env('REDIS_PASSWORD'),
+          'CACHE_REDIS_DB': env('REDIS_DB', 1),
+    }
+    DATA_CACHE_CONFIG = CACHE_CONFIG
+    
+    SQLALCHEMY_DATABASE_URI = f"postgresql+psycopg2://{env('POSTGRES_USER')}:{env('POSTGRES_PASS')}@{env('POSTGRES_HOST')}:5432/superset}"
+    SQLALCHEMY_TRACK_MODIFICATIONS = True
+    SECRET_KEY = env('SECRET_KEY', 'thisISaSECRET_1234')
+    
+    # Flask-WTF flag for CSRF
+    WTF_CSRF_ENABLED = True
+    # Add endpoints that need to be exempt from CSRF protection
+    WTF_CSRF_EXEMPT_LIST = []
+    # A CSRF token that expires in 1 year
+    WTF_CSRF_TIME_LIMIT = 60 * 60 * 24 * 365
+    class CeleryConfig(object):
+      BROKER_URL = f"redis://{env('REDIS_HOST')}:{env('REDIS_PORT')}/0"
+      CELERY_IMPORTS = ('superset.sql_lab', )
+      CELERY_RESULT_BACKEND = f"redis://{env('REDIS_HOST')}:{env('REDIS_PORT')}/0"
+      CELERY_ANNOTATIONS = {'tasks.add': {'rate_limit': '10/s'}}
+    
+    CELERY_CONFIG = CeleryConfig
+    RESULTS_BACKEND = RedisCache(
+          host=env('REDIS_HOST'),
+          port=env('REDIS_PORT'),
+          key_prefix='superset_results'
+    )
+    
+    
+  superset_init.sh: |
+    #!/bin/sh
+    echo "Upgrading DB schema..."
+    superset db upgrade
+    echo "Initializing roles..."
+    superset init
+    
+    echo "Creating admin user..."
+    superset fab create-admin \
+                    --username admin \
+                    --firstname Superset \
+                    --lastname Admin \
+                    --email admin@superset.com \
+                    --password admin \
+                    || true
+    
+  superset_bootstrap.sh: |
+    #!/bin/bash
+    apt-get update -y &&\
+     apt-get install -y --no-install-recommends nano &&\
+     rm -rf /var/lib/apt/lists/*
+    pip install psycopg2==2.8.5 redis==3.2.1
+    if [ ! -f ~/bootstrap ]; then echo "Running Superset with uid 0" > ~/bootstrap; fi
+---
+# Source: superset/charts/redis/templates/scripts.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: superset-redis-scripts
+  labels:
+    helm.sh/chart: redis-0.4.6
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: superset
+    app.kubernetes.io/version: "6.2.4"
+    app.kubernetes.io/managed-by: Helm
+data:
+  init.sh: |
+    #!/bin/sh
+    REDIS_CONFIG=/data/conf/redis.conf
+    SENTINEL_CONFIG=/data/conf/sentinel.conf
+
+    configure_redis() {
+        echo "Configuring redis server..."
+        rm -f $REDIS_CONFIG
+
+        echo "Setting redis server defaults"
+        echo "port 6379" >>$REDIS_CONFIG
+        echo "protected-mode no" >>$REDIS_CONFIG
+        echo "bind 0.0.0.0" >>$REDIS_CONFIG
+        echo "dir /data" >>$REDIS_CONFIG
+
+        if [ -f /usr/local/etc/redis/redis.conf ]; then
+            echo "Adding optional redis configuration settings"
+            cat /usr/local/etc/redis/redis.conf >>$REDIS_CONFIG
+        fi
+        echo "Configuring redis server finished."
+    }
+
+    echo "Initialize configuration..."
+    mkdir -p /data/conf
+    configure_redis
+    echo "Finished."
+---
+# Source: superset/charts/redis/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: superset-redis
+  labels:
+    helm.sh/chart: redis-0.4.6
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: superset
+    app.kubernetes.io/version: "6.2.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+    - port: 6379
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: superset
+---
+# Source: superset/templates/service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: Service
+metadata:
+  name: superset
+  labels:
+    app: superset
+    chart: superset-0.1.5
+    release: superset
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8088
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: superset
+    release: superset
+---
+# Source: superset/templates/deployment-worker.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superset-worker
+  labels:
+    app: superset-worker
+    chart: superset-0.1.5
+    release: superset
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset-worker
+      release: superset
+  template:
+    metadata:
+      annotations:
+        checksum/superset_config.py: 9facd455e9be6a40e3c9af7f0fcb7a2cf2c97f7f764b349cbeb9be0d9f217665
+        checksum/connections: b609b6ca36de1655d40c478aeb8eeea46e870c65a13faf5be68617fcd243ef76
+        checksum/extraConfigs: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        checksum/extraSecrets: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        checksum/extraSecretEnv: 3208c8c42f6fa8c4c7b54c4f5597d30ad068427488d6e5d9c6d64bfe81d73fb2
+        checksum/configOverrides: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        
+      labels:
+        app: superset-worker
+        release: superset
+    spec:
+      securityContext:
+        runAsUser: 0
+      initContainers:
+      - command:
+        - /bin/sh
+        - -c
+        - until nc -zv $(POSTGRES_HOST) 5432 -w1; do echo 'waiting for db'; sleep 1; done
+        envFrom:
+        - secretRef:
+            name: superset-env
+        - secretRef:
+            name: storage-secrets
+        image: busybox:latest
+        imagePullPolicy: IfNotPresent
+        name: wait-for-postgres
+      containers:
+        - name: superset
+          image: "alvarogg777/superset:latest"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c",". /app/pythonpath/superset_bootstrap.sh; celery --app=superset.tasks.celery_app:app worker"]
+          env:
+            - name: "SUPERSET_PORT"
+              value: "8088"          
+          envFrom:
+            - secretRef:
+                name: superset-env
+            - secretRef:
+                name: storage-secrets
+          volumeMounts:
+            - name: superset-config
+              mountPath: "/app/pythonpath"
+              readOnly: true
+          resources:
+            {}
+      volumes:
+        - name: superset-config
+          secret:
+            secretName: superset-config
+---
+# Source: superset/templates/deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superset
+  labels:
+    app: superset
+    chart: superset-0.1.5
+    release: superset
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset
+      release: superset
+  template:
+    metadata:
+      annotations:
+        # Force reload on config changes
+        checksum/superset_config.py: 9facd455e9be6a40e3c9af7f0fcb7a2cf2c97f7f764b349cbeb9be0d9f217665
+        checksum/superset_init.sh: cff695ac9aa9e6513e202bf9d7541d81927d3fbc91684bb4b3793c83c89fbe30
+        checksum/superset_bootstrap.sh: 1b84b7537397cd7b69ff259b05c286fc3be65937ea32034ee04272c90f06c53d
+        checksum/connections: b609b6ca36de1655d40c478aeb8eeea46e870c65a13faf5be68617fcd243ef76
+        checksum/extraConfigs: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        checksum/extraSecrets: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        checksum/extraSecretEnv: 3208c8c42f6fa8c4c7b54c4f5597d30ad068427488d6e5d9c6d64bfe81d73fb2
+        checksum/configOverrides: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+      labels:
+        app: superset
+        release: superset
+    spec:
+      securityContext:
+        runAsUser: 0
+      initContainers:
+      - command:
+        - /bin/sh
+        - -c
+        - until nc -zv $(POSTGRES_HOST) 5432 -w1; do echo 'waiting for db'; sleep 1; done
+        envFrom:
+        - secretRef:
+            name: superset-env
+        - secretRef:
+            name: storage-secrets
+        image: busybox:latest
+        imagePullPolicy: IfNotPresent
+        name: wait-for-postgres
+      containers:
+        - name: superset
+          image: "alvarogg777/superset:latest"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c",". /app/pythonpath/superset_bootstrap.sh; /usr/bin/docker-entrypoint.sh"]
+          env:
+            - name: "SUPERSET_PORT"
+              value: "8088"
+          
+          envFrom:
+            - secretRef:
+                name: superset-env
+          volumeMounts:
+            - name: superset-config
+              mountPath: "/app/pythonpath"
+              readOnly: true
+          ports:
+            - name: http
+              containerPort: 8088
+              protocol: TCP
+          resources:
+            {}
+
+      volumes:
+        - name: superset-config
+          secret:
+            secretName: superset-config
+---
+# Source: superset/charts/redis/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: superset-redis
+  labels:
+    helm.sh/chart: redis-0.4.6
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: superset
+    app.kubernetes.io/version: "6.2.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  serviceName: superset-redis
+  podManagementPolicy: OrderedReady
+  updateStrategy: 
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: superset
+  template:
+    metadata:
+      annotations:
+        checksum/customconfig: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/scripts: 39c45f31d1e6c1215dc8ddf8285d99143ca05fc758277d2fd8d5fda7031262c8
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/instance: superset
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 999
+      initContainers:
+        - name: redis-init
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+          image: "redis:6.2.4"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /data
+              name: redis-data
+            - name: scripts
+              mountPath: /scripts
+          command: [ "/scripts/init.sh" ]
+      containers:
+        - name: redis-server
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+          image: "redis:6.2.4"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP              
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli ping
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli ping
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+          command:
+            - redis-server
+          args:
+            - /data/conf/redis.conf
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: scripts
+          configMap:
+            name: superset-redis-scripts
+            defaultMode: 0555
+        - name: redis-data
+          emptyDir: {}
+---
+# Source: superset/templates/configmap-superset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# Source: superset/templates/ingress.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# Source: superset/templates/init-job.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: superset-init-db
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+spec:
+  template:
+    metadata:
+      name: superset-init-db
+    spec:
+      securityContext:
+        runAsUser: 0
+      initContainers:
+      - command:
+        - /bin/sh
+        - -c
+        - until nc -zv $(POSTGRES_HOST) 5432 -w1; do echo 'waiting for db'; sleep 1; done
+        envFrom:
+        - secretRef:
+            name: superset-env
+        - secretRef:
+            name: storage-secrets
+        image: busybox:latest
+        imagePullPolicy: IfNotPresent
+        name: wait-for-postgres
+      containers:
+      - name: superset-init-db
+        image: "alvarogg777/superset:latest"
+        
+        envFrom:
+          - secretRef:
+              name: superset-env
+          - secretRef:
+              name: storage-secrets
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - name: superset-config
+            mountPath: "/app/pythonpath"
+            readOnly: true
+        
+        command: ["/bin/sh","-c",". /app/pythonpath/superset_bootstrap.sh; . /app/pythonpath/superset_init.sh"]
+        resources:
+          {}
+      volumes:
+        - name: superset-config
+          secret:
+            secretName: superset-config
+      restartPolicy: Never
