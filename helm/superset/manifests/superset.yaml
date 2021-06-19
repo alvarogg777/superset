@@ -33,17 +33,17 @@ stringData:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: init-db
+  name: init-superset-db
 spec:
   template:
     metadata:
-      name:  init-db
+      name:  init-superset-db
       labels:
-        app: init-postgresdb
+        app: init-supserset-postgresdb
     spec:
       containers:
       - image: "docker.io/postgres:13.3"
-        name: init-db
+        name: init-superset-db
         command: ["createdb"]
         env:
           - name: PGPASSWORD
