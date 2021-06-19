@@ -78,7 +78,7 @@ stringData:
     }
     DATA_CACHE_CONFIG = CACHE_CONFIG
     
-    SQLALCHEMY_DATABASE_URI = f"postgresql+psycopg2://{env('POSTGRES_USER')}:{env('POSTGRES_PASS')}@{env('POSTGRES_HOST')}:5432/superset}"
+    SQLALCHEMY_DATABASE_URI = f"postgresql+psycopg2://{env('POSTGRES_USER')}:{env('POSTGRES_PASS')}@{env('POSTGRES_HOST')}:5432/superset"
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     SECRET_KEY = env('SECRET_KEY', 'thisISaSECRET_1234')
     
