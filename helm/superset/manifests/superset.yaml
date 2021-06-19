@@ -29,44 +29,44 @@ type: Opaque
 stringData:
     REDIS_HOST: "superset-redis"
     REDIS_PORT: "6379"
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: init-superset-db
-spec:
-  template:
-    metadata:
-      name:  init-superset-db
-      labels:
-        app: init-supserset-postgresdb
-    spec:
-      containers:
-      - image: "docker.io/postgres:13.3"
-        name: init-superset-db
-        command: ["createdb"]
-        env:
-          - name: PGPASSWORD
-            valueFrom:
-                secretKeyRef:
-                  key: POSTGRES_PASSWORD
-                  name: storage-secrets
-          - name: PGUSER
-            valueFrom:
-                secretKeyRef:
-                  key: POSTGRES_USER
-                  name: storage-secrets
-          - name: PGHOST
-            valueFrom:
-                secretKeyRef:
-                  key: POSTGRES_HOST
-                  name: storage-secrets
-          - name: PGDATABASE
-            value: superset
-      imagePullSecrets:
-        - name: regcred
-      restartPolicy: OnFailure
-
+# ---
+# apiVersion: batch/v1
+# kind: Job
+# metadata:
+#   name: init-superset-db
+# spec:
+#   template:
+#     metadata:
+#       name:  init-superset-db
+#       labels:
+#         app: init-supserset-postgresdb
+#     spec:
+#       containers:
+#       - image: "docker.io/postgres:13.3"
+#         name: init-superset-db
+#         command: ["createdb"]
+#         env:
+#           - name: PGPASSWORD
+#             valueFrom:
+#                 secretKeyRef:
+#                   key: POSTGRES_PASSWORD
+#                   name: storage-secrets
+#           - name: PGUSER
+#             valueFrom:
+#                 secretKeyRef:
+#                   key: POSTGRES_USER
+#                   name: storage-secrets
+#           - name: PGHOST
+#             valueFrom:
+#                 secretKeyRef:
+#                   key: POSTGRES_HOST
+#                   name: storage-secrets
+#           - name: PGDATABASE
+#             value: superset
+#       imagePullSecrets:
+#         - name: regcred
+#       restartPolicy: OnFailure
+# 
 ---
 # Source: superset/templates/secret-superset-config.yaml
 #
@@ -333,11 +333,24 @@ spec:
           env:
             - name: "SUPERSET_PORT"
               value: "8088"          
+            - name: POSTGRES_PASSWORD
+              valueFrom:  
+                  secretKeyRef:
+                    key: POSTGRES_PASSWORD
+                    name: storage-secrets   
+            - name: POSTGRES_USER
+              valueFrom:  
+                  secretKeyRef:
+                    key: POSTGRES_PASSWORD
+                    name: storage-secrets   
+            - name: POSTGRES_HOST
+              valueFrom:  
+                  secretKeyRef:
+                    key: POSTGRES_HOST
+                    name: storage-secrets   
           envFrom:
             - secretRef:
                 name: superset-env
-            - secretRef:
-                name: storage-secrets
           volumeMounts:
             - name: superset-config
               mountPath: "/app/pythonpath"
@@ -406,6 +419,22 @@ spec:
         - /bin/sh
         - -c
         - until nc -zv $(POSTGRES_HOST) 5432 -w1; do echo 'waiting for db'; sleep 1; done
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+              secretKeyRef:
+                key: POSTGRES_PASSWORD
+                name: storage-secrets
+        - name: POSTGRES_USER
+          valueFrom:
+              secretKeyRef:
+                key: POSTGRES_PASSWORD
+                name: storage-secrets
+        - name: POSTGRES_HOST
+          valueFrom:
+              secretKeyRef:
+                key: POSTGRES_HOST
+                name: storage-secrets
         envFrom:
         - secretRef:
             name: superset-env
@@ -622,6 +651,22 @@ spec:
         - /bin/sh
         - -c
         - until nc -zv $(POSTGRES_HOST) 5432 -w1; do echo 'waiting for db'; sleep 1; done
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+              secretKeyRef:
+                key: POSTGRES_PASSWORD
+                name: storage-secrets
+        - name: POSTGRES_USER
+          valueFrom:
+              secretKeyRef:
+                key: POSTGRES_PASSWORD
+                name: storage-secrets
+        - name: POSTGRES_HOST
+          valueFrom:
+              secretKeyRef:
+                key: POSTGRES_HOST
+                name: storage-secrets
         envFrom:
         - secretRef:
             name: superset-env
@@ -633,7 +678,22 @@ spec:
       containers:
       - name: superset-init-db
         image: "alvarogg777/superset:latest"
-        
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+              secretKeyRef:
+                key: POSTGRES_PASSWORD
+                name: storage-secrets
+        - name: POSTGRES_USER
+          valueFrom:
+              secretKeyRef:
+                key: POSTGRES_PASSWORD
+                name: storage-secrets
+        - name: POSTGRES_HOST
+          valueFrom:
+              secretKeyRef:
+                key: POSTGRES_HOST
+                name: storage-secrets
         envFrom:
           - secretRef:
               name: superset-env
