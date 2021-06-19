@@ -29,44 +29,44 @@ type: Opaque
 stringData:
     REDIS_HOST: "superset-redis"
     REDIS_PORT: "6379"
-# ---
-# apiVersion: batch/v1
-# kind: Job
-# metadata:
-#   name: init-superset-db
-# spec:
-#   template:
-#     metadata:
-#       name:  init-superset-db
-#       labels:
-#         app: init-supserset-postgresdb
-#     spec:
-#       containers:
-#       - image: "docker.io/postgres:13.3"
-#         name: init-superset-db
-#         command: ["createdb"]
-#         env:
-#           - name: PGPASSWORD
-#             valueFrom:
-#                 secretKeyRef:
-#                   key: POSTGRES_PASSWORD
-#                   name: storage-secrets
-#           - name: PGUSER
-#             valueFrom:
-#                 secretKeyRef:
-#                   key: POSTGRES_USER
-#                   name: storage-secrets
-#           - name: PGHOST
-#             valueFrom:
-#                 secretKeyRef:
-#                   key: POSTGRES_HOST
-#                   name: storage-secrets
-#           - name: PGDATABASE
-#             value: superset
-#       imagePullSecrets:
-#         - name: regcred
-#       restartPolicy: OnFailure
-# 
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-superset-db
+spec:
+  template:
+    metadata:
+      name:  create-superset-db
+      labels:
+        app: create-supserset-postgresdb
+    spec:
+      containers:
+      - image: "docker.io/postgres:13.3"
+        name: create-superset-db
+        command: ["createdb"]
+        env:
+          - name: PGPASSWORD
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: storage-secrets
+          - name: PGUSER
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_USER
+                  name: storage-secrets
+          - name: PGHOST
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_HOST
+                  name: storage-secrets
+          - name: PGDATABASE
+            value: superset
+      imagePullSecrets:
+        - name: regcred
+      restartPolicy: OnFailure
+
 ---
 # Source: superset/templates/secret-superset-config.yaml
 #
