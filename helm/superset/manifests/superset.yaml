@@ -272,6 +272,8 @@ spec:
     spec:
       securityContext:
         runAsUser: 0
+      imagePullSecrets:
+        - name: regcred
       initContainers:
       - command:
         - /bin/sh
@@ -359,6 +361,8 @@ spec:
     spec:
       securityContext:
         runAsUser: 0
+      imagePullSecrets:
+        - name: regcred
       initContainers:
       - command:
         - /bin/sh
@@ -433,6 +437,8 @@ spec:
       serviceAccountName: default
       securityContext:
         fsGroup: 999
+      imagePullSecrets:
+        - name: regcred
       initContainers:
         - name: redis-init
           securityContext:
@@ -569,6 +575,8 @@ spec:
     spec:
       securityContext:
         runAsUser: 0
+      imagePullSecrets:
+        - name: regcred
       initContainers:
       - command:
         - /bin/sh
