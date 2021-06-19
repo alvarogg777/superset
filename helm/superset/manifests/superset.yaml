@@ -30,6 +30,44 @@ stringData:
     REDIS_HOST: "superset-redis"
     REDIS_PORT: "6379"
 ---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-db
+spec:
+  template:
+    metadata:
+      name:  init-db
+      labels:
+        app: init-postgresdb
+    spec:
+      containers:
+      - image: "docker.io/postgres:13.3"
+        name: init-db
+        command: ["createdb"]
+        env:
+          - name: PGPASSWORD
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: storage-secrets
+          - name: PGUSER
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_USER
+                  name: storage-secrets
+          - name: PGHOST
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_HOST
+                  name: storage-secrets
+          - name: PGDATABASE
+            value: superset
+      imagePullSecrets:
+        - name: regcred
+      restartPolicy: OnFailure
+
+---
 # Source: superset/templates/secret-superset-config.yaml
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
@@ -388,6 +426,8 @@ spec:
           envFrom:
             - secretRef:
                 name: superset-env
+            - secretRef:
+                name: storage-secrets
           volumeMounts:
             - name: superset-config
               mountPath: "/app/pythonpath"
