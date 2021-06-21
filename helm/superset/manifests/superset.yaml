@@ -35,6 +35,7 @@ kind: Job
 metadata:
   name: create-superset-db
 spec:
+  backoffLimit: 12
   template:
     metadata:
       name:  create-superset-db
