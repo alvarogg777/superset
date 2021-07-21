@@ -43,27 +43,27 @@ spec:
         app: create-supserset-postgresdb
     spec:
       containers:
-      - image: "docker.io/postgres:13.3"
-        name: create-superset-db
-        command: ["createdb"]
-        env:
-          - name: PGPASSWORD
-            valueFrom:
-                secretKeyRef:
-                  key: POSTGRES_PASSWORD
-                  name: storage-secrets
-          - name: PGUSER
-            valueFrom:
-                secretKeyRef:
-                  key: POSTGRES_USER
-                  name: storage-secrets
-          - name: PGHOST
-            valueFrom:
-                secretKeyRef:
-                  key: POSTGRES_HOST
-                  name: storage-secrets
-          - name: PGDATABASE
-            value: superset
+        - image: "docker.io/postgres:13.3"
+          name: create-superset-db
+          command: ["createdb"]
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                  secretKeyRef:
+                    key: POSTGRES_PASSWORD
+                    name: storage-secrets
+            - name: PGUSER
+              valueFrom:
+                  secretKeyRef:
+                    key: POSTGRES_USER
+                    name: storage-secrets
+            - name: PGHOST
+              valueFrom:
+                  secretKeyRef:
+                    key: POSTGRES_HOST
+                    name: storage-secrets
+            - name: PGDATABASE
+              value: superset
       imagePullSecrets:
         - name: regcred
       restartPolicy: OnFailure
@@ -314,24 +314,26 @@ spec:
       imagePullSecrets:
         - name: regcred
       initContainers:
-      - command:
-        - /bin/sh
-        - -c
-        - until nc -zv $(POSTGRES_HOST) 5432 -w1; do echo 'waiting for db'; sleep 1; done
-        envFrom:
-        - secretRef:
-            name: superset-env
-        - secretRef:
-            name: storage-secrets
-        image: busybox:latest
-        imagePullPolicy: IfNotPresent
-        name: wait-for-postgres
+        - command:
+          - /bin/sh
+          - -c
+          - until nc -zv $(POSTGRES_HOST) 5432 -w1; do echo 'waiting for db'; sleep 1; done
+          envFrom:
+          - secretRef:
+              name: superset-env
+          - secretRef:
+              name: storage-secrets
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          name: wait-for-postgres
       containers:
         - name: superset
           image: "alvarogg777/superset:latest"
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh","-c",". /app/pythonpath/superset_bootstrap.sh; celery --app=superset.tasks.celery_app:app worker"]
           env:
+            - name: TZ
+              value: Europe/Madrid
             - name: "SUPERSET_PORT"
               value: "8088"          
             - name: POSTGRES_PASSWORD
@@ -416,31 +418,33 @@ spec:
       imagePullSecrets:
         - name: regcred
       initContainers:
-      - command:
-        - /bin/sh
-        - -c
-        - until nc -zv $(POSTGRES_HOST) 5432 -w1; do echo 'waiting for db'; sleep 1; done
+        - command:
+            - /bin/sh
+            - -c
+            - until nc -zv $(POSTGRES_HOST) 5432 -w1; do echo 'waiting for db'; sleep 1; done
         env:
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-              secretKeyRef:
-                key: POSTGRES_PASSWORD
-                name: storage-secrets
-        - name: POSTGRES_USER
-          valueFrom:
-              secretKeyRef:
-                key: POSTGRES_PASSWORD
-                name: storage-secrets
-        - name: POSTGRES_HOST
-          valueFrom:
-              secretKeyRef:
-                key: POSTGRES_HOST
-                name: storage-secrets
-        envFrom:
-        - secretRef:
-            name: superset-env
-        - secretRef:
-            name: storage-secrets
+          - name: TZ
+            value: Europe/Madrid
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: storage-secrets
+          - name: POSTGRES_USER
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: storage-secrets
+          - name: POSTGRES_HOST
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_HOST
+                  name: storage-secrets
+          envFrom:
+          - secretRef:
+              name: superset-env
+          - secretRef:
+              name: storage-secrets
         image: busybox:latest
         imagePullPolicy: IfNotPresent
         name: wait-for-postgres
@@ -450,9 +454,10 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh","-c",". /app/pythonpath/superset_bootstrap.sh; /usr/bin/docker-entrypoint.sh"]
           env:
+            - name: TZ
+              value: Europe/Madrid
             - name: "SUPERSET_PORT"
               value: "8088"
-          
           envFrom:
             - secretRef:
                 name: superset-env
@@ -528,6 +533,9 @@ spec:
           command: [ "/scripts/init.sh" ]
       containers:
         - name: redis-server
+          env:
+            - name: TZ
+              value: Europe/Madrid
           securityContext:
             allowPrivilegeEscalation: false
             privileged: false
@@ -653,26 +661,28 @@ spec:
         - -c
         - until nc -zv $(POSTGRES_HOST) 5432 -w1; do echo 'waiting for db'; sleep 1; done
         env:
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-              secretKeyRef:
-                key: POSTGRES_PASSWORD
-                name: storage-secrets
-        - name: POSTGRES_USER
-          valueFrom:
-              secretKeyRef:
-                key: POSTGRES_PASSWORD
-                name: storage-secrets
-        - name: POSTGRES_HOST
-          valueFrom:
-              secretKeyRef:
-                key: POSTGRES_HOST
-                name: storage-secrets
+          - name: TZ
+            value: Europe/Madrid
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: storage-secrets
+          - name: POSTGRES_USER
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: storage-secrets
+          - name: POSTGRES_HOST
+            valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_HOST
+                  name: storage-secrets
         envFrom:
-        - secretRef:
-            name: superset-env
-        - secretRef:
-            name: storage-secrets
+          - secretRef:
+              name: superset-env
+          - secretRef:
+              name: storage-secrets
         image: busybox:latest
         imagePullPolicy: IfNotPresent
         name: wait-for-postgres
@@ -680,6 +690,8 @@ spec:
       - name: superset-init-db
         image: "alvarogg777/superset:latest"
         env:
+        - name: TZ
+          value: Europe/Madrid          
         - name: POSTGRES_PASSWORD
           valueFrom:
               secretKeyRef:
