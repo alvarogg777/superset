@@ -338,19 +338,19 @@ spec:
               value: "8088"          
             - name: POSTGRES_PASSWORD
               valueFrom:  
-                  secretKeyRef:
-                    key: POSTGRES_PASSWORD
-                    name: storage-secrets   
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: storage-secrets   
             - name: POSTGRES_USER
               valueFrom:  
-                  secretKeyRef:
-                    key: POSTGRES_PASSWORD
-                    name: storage-secrets   
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: storage-secrets   
             - name: POSTGRES_HOST
               valueFrom:  
-                  secretKeyRef:
-                    key: POSTGRES_HOST
-                    name: storage-secrets   
+                secretKeyRef:
+                  key: POSTGRES_HOST
+                  name: storage-secrets   
           envFrom:
             - secretRef:
                 name: superset-env
@@ -430,19 +430,19 @@ spec:
               value: Europe/Madrid
             - name: POSTGRES_PASSWORD
               valueFrom:
-                  secretKeyRef:
-                    key: POSTGRES_PASSWORD
-                    name: storage-secrets
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: storage-secrets
             - name: POSTGRES_USER
               valueFrom:
-                  secretKeyRef:
-                    key: POSTGRES_PASSWORD
-                    name: storage-secrets
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: storage-secrets
             - name: POSTGRES_HOST
               valueFrom:
-                  secretKeyRef:
-                    key: POSTGRES_HOST
-                    name: storage-secrets
+                secretKeyRef:
+                  key: POSTGRES_HOST
+                  name: storage-secrets
           envFrom:
             - secretRef:
                 name: superset-env
@@ -665,19 +665,19 @@ spec:
             value: Europe/Madrid
           - name: POSTGRES_PASSWORD
             valueFrom:
-                secretKeyRef:
-                  key: POSTGRES_PASSWORD
-                  name: storage-secrets
+              secretKeyRef:
+                key: POSTGRES_PASSWORD
+                name: storage-secrets
           - name: POSTGRES_USER
             valueFrom:
-                secretKeyRef:
-                  key: POSTGRES_PASSWORD
-                  name: storage-secrets
+              secretKeyRef:
+                key: POSTGRES_PASSWORD
+                name: storage-secrets
           - name: POSTGRES_HOST
             valueFrom:
-                secretKeyRef:
-                  key: POSTGRES_HOST
-                  name: storage-secrets
+              secretKeyRef:
+                key: POSTGRES_HOST
+                name: storage-secrets
         envFrom:
           - secretRef:
               name: superset-env
@@ -694,19 +694,19 @@ spec:
           value: Europe/Madrid          
         - name: POSTGRES_PASSWORD
           valueFrom:
-              secretKeyRef:
-                key: POSTGRES_PASSWORD
-                name: storage-secrets
+            secretKeyRef:
+              key: POSTGRES_PASSWORD
+              name: storage-secrets
         - name: POSTGRES_USER
           valueFrom:
-              secretKeyRef:
-                key: POSTGRES_PASSWORD
-                name: storage-secrets
+            secretKeyRef:
+              key: POSTGRES_PASSWORD
+              name: storage-secrets
         - name: POSTGRES_HOST
           valueFrom:
-              secretKeyRef:
-                key: POSTGRES_HOST
-                name: storage-secrets
+            secretKeyRef:
+              key: POSTGRES_HOST
+              name: storage-secrets
         envFrom:
           - secretRef:
               name: superset-env
