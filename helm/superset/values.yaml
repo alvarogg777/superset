@@ -61,21 +61,29 @@ extraEnv: {}
 
 ## Extra environment variables in RAW format that will be passed into pods
 ##
-extraEnvRaw: []
+extraEnvRaw:
   # Load DB password from other secret (e.g. for zalando operator)
-  # - name: DB_PASS
-  #   valueFrom:
-  #     secretKeyRef:
-  #       name: superset.superset-postgres.credentials.postgresql.acid.zalan.do
-  #       key: password
+  - name: DB_PASS
+    valueFrom:
+      secretKeyRef:
+        name: mlflow.acid-minimal-cluster.credentials.postgresql.acid.zalan.do
+        key: password
+  - name: DB_USER
+    valueFrom:
+      secretKeyRef:
+        name: mlflow.acid-minimal-cluster.credentials.postgresql.acid.zalan.do
+        key: username
 
 ## Extra environment variables to pass as secrets
 ##
-extraSecretEnv: {}
-  # MAPBOX_API_KEY: ...
+extraSecretEnv:
+  MAPBOX_API_KEY: cGsuZXlKMUlqb2lZV3hpYjNKdmRHOW5ZWEpqYVdFaUxDSmhJam9pWTJzNFpuZHBaWGhxTURSa2JETmxjR3Q2YVdvMU5YSTNjU0o5Lm9iQjZydHFZajVfNnJtRmVfSDV1MFEK # pk.eyJ1IjoiYWxib3JvdG9nYXJjaWEiLCJhIjoiY2s4ZndpZXhqMDRkbDNlcGt6aWo1NXI3cSJ9.obB6rtqYj5_6rmFe_H5u0Q
+  DB_HOST: acid-minimal-cluster.storage.svc.cluster.local
+  DB_PORT: "5432"
   # # Google API Keys: https://console.cloud.google.com/apis/credentials
-  # GOOGLE_KEY: ...
-  # GOOGLE_SECRET: ...
+  KC_CLIENT: superset
+  KC_SECRET: e444238e-c71d-4564-af12-5de38bbc69ee
+  SECRET_KEY: e444238e-c71d-4564-af12-5de38bbc69ee
 
 extraConfigs: {}
   # datasources-init.yaml: |
@@ -111,49 +119,44 @@ extraVolumeMounts: []
 # A dictionary of overrides to append at the end of superset_config.py - the name does not matter
 # WARNING: the order is not guaranteed
 configOverrides: {}
-  #  extend_timeout: |
-  #    # Extend timeout to allow long running queries.
-  #    SUPERSET_WEBSERVER_TIMEOUT = ...
-  # enable_oauth: |
-  #   from flask_appbuilder.security.manager import (AUTH_DB, AUTH_OAUTH)
-  #   AUTH_TYPE = AUTH_OAUTH
-
-  #   OAUTH_PROVIDERS = [
-  #       {
-  #           "name": "google",
-  #           "whitelist": [ os.getenv("OAUTH_WHITELIST_REGEX", "") ],
-  #           "icon": "fa-google",
-  #           "token_key": "access_token",
-  #           "remote_app": {
-  #               "client_id": os.environ.get("GOOGLE_KEY"),
-  #               "client_secret": os.environ.get("GOOGLE_SECRET"),
-  #               "api_base_url": "https://www.googleapis.com/oauth2/v2/",
-  #               "client_kwargs": {"scope": "email profile"},
-  #               "request_token_url": None,
-  #               "access_token_url": "https://accounts.google.com/o/oauth2/token",
-  #               "authorize_url": "https://accounts.google.com/o/oauth2/auth",
-  #               "authorize_params": {"hd": os.getenv("OAUTH_HOME_DOMAIN", "")}
-  #           }
-  #       }
-  #   ]
-  #   # Map Authlib roles to superset roles
-  #   AUTH_ROLE_ADMIN = 'Admin'
-  #   AUTH_ROLE_PUBLIC = 'Public'
-  #   # Will allow user self registration, allowing to create Flask users from Authorized User
-  #   AUTH_USER_REGISTRATION = True
-  #   # The default user self registration role
-  #   AUTH_USER_REGISTRATION_ROLE = "Admin"
+#    # extend_timeout: |
+#    #   # Extend timeout to allow long running queries.
+#    #   SUPERSET_WEBSERVER_TIMEOUT = 300
+#   enable_oauth: |
+#     from flask_appbuilder.security.manager import (AUTH_DB, AUTH_OAUTH)
+#     AUTH_TYPE = AUTH_OAUTH
+#     OAUTH_PROVIDERS = [
+#         {
+#             "name": "keycloak",
+#             "whitelist": [ os.getenv("OAUTH_WHITELIST_REGEX", "") ],
+#             "icon": "fa-address-card",
+#             "token_key": "access_token",
+#             "remote_app": {
+#                 "client_id": os.environ.get("KC_CLIENT"),
+#                 "client_secret": os.environ.get("KC_SECRET"),
+#                 'server_metadata_url': 'https://kc.alboroto.live/auth/realms/alborotoproject/.well-known/openid-configuration'
+#             }
+#         }
+#     ]
+#     # Map Authlib roles to superset roles
+#     AUTH_ROLE_ADMIN = 'Admin'
+#     AUTH_ROLE_PUBLIC = 'Public'
+#     # Will allow user self registration, allowing to create Flask users from Authorized User
+#     AUTH_USER_REGISTRATION = True
+#     # The default user self registration role
+#     AUTH_USER_REGISTRATION_ROLE = "Admin"
 
 configMountPath: "/app/pythonpath"
 
 extraConfigMountPath: "/app/configs"
 
 image:
-  repository: apache/superset
-  tag: latest
+  repository: alvarogg777/superset
+  tag: 1.3.1-arm64
   pullPolicy: IfNotPresent
 
-imagePullSecrets: []
+imagePullSecrets:
+  - name: "regcred"
 
 
 service:
@@ -164,9 +167,10 @@ service:
   loadBalancerIP: null
 
 ingress:
-  enabled: false
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.frontend.passHostHeader: "true"
     # kubernetes.io/tls-acme: "true"
     ## Extend timeout to allow long running queries.
     # nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
@@ -175,11 +179,11 @@ ingress:
   path: /
   pathType: ImplementationSpecific
   hosts:
-    - chart-example.local
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+    - superset.alboroto.live
+  tls:
+    - secretName: alboroto-tls
+      hosts:
+        - superset.alboroto.live
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
@@ -210,12 +214,12 @@ supersetNode:
     - "-c"
     - ". {{ .Values.configMountPath }}/superset_bootstrap.sh; /usr/bin/docker-entrypoint.sh"
   connections:
-    redis_host: '{{ template "superset.fullname" . }}-redis-headless'
+    redis_host: '{{ template "superset.fullname" . }}-redis'
     redis_port: "6379"
-    db_host: '{{ template "superset.fullname" . }}-postgresql'
-    db_port: "5432"
-    db_user: superset
-    db_pass: superset
+    db_host: $DB_HOST # '{{ template "superset.fullname" . }}-postgresql'
+    db_port: $DB_PORT # "5432"
+    db_user: $DB_USER # superset
+    db_pass: $DB_PASS # superset
     db_name: superset
   env: {}
   forceReload: false # If true, forces deployment to reload on each upgrade
@@ -342,16 +346,20 @@ postgresql:
   ##
   ## Use the PostgreSQL chart dependency.
   ## Set to false if bringing your own PostgreSQL.
-  enabled: true
+  enabled: false
   ##
   ## The name of an existing secret that contains the postgres password.
-  existingSecret:
+  existingSecret: mlflow.acid-minimal-cluster.credentials.postgresql.acid.zalan.do
   ## Name of the key containing the secret.
-  existingSecretKey: postgresql-password
+  existingSecretKey: password
+
   ##
   ## If you are bringing your own PostgreSQL, you should set postgresHost and
   ## also probably service.port, postgresqlUsername, postgresqlPassword, and postgresqlDatabase
-  ## postgresHost:
+  postgresHost: acid-minimal-cluster.storage.svc.cluster.local
+  postgresqlUsername: mlflow
+  postgresqlPassword: "8Xc1U968rPDLa5zbZ0w6CIuZH7kGOiB1Bf11IieI9dLG6k2fuhLzCZY4H20WsRnm"
+  postgresqlDatabase: superset
   ##
   ## PostgreSQL port
   service:
@@ -374,7 +382,7 @@ postgresql:
     enabled: true
     ##
     ## Persistant class
-    # storageClass: classname
+    storageClass: longhorn
     ##
     ## Access modes:
     accessModes:
@@ -431,4 +439,13 @@ nodeSelector: {}
 
 tolerations: []
 
-affinity: {}
+affinity:
+  nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+            - key: "kubernetes.io/hostname"
+              operator: NotIn
+              values:
+                - kpi4
+                - knode1

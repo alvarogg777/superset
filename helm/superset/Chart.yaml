@@ -24,11 +24,11 @@ maintainers:
     url: https://github.com/craig-rueda
 version: 0.3.10
 dependencies:
-- name: postgresql
-  version: 10.2.0
-  repository: https://charts.bitnami.com/bitnami
+- name: postgres
+  version: 0.3.0
+  repository: https://groundhog2k.github.io/helm-charts
   condition: postgresql.enabled
 - name: redis
-  version: 12.3.3
-  repository: https://charts.bitnami.com/bitnami
+  version: 0.4.8
+  repository: https://groundhog2k.github.io/helm-charts
   condition: redis.enabled

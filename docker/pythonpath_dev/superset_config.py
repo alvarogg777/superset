@@ -112,3 +112,28 @@ try:
     )
 except ImportError:
     logger.info("Using default Docker config...")
+
+
+from keycloak_security_manager import OIDCSecurityManager
+from flask_appbuilder.security.manager import AUTH_OID, AUTH_REMOTE_USER, AUTH_DB, AUTH_LDAP, AUTH_OAUTH
+
+import os
+
+
+'''
+---------------------------KEYCLOACK ----------------------------
+'''
+curr  =  os.path.abspath(os.getcwd())
+AUTH_TYPE = AUTH_OID
+SECRET_KEY: 'e444238e-c71d-4564-af12-5de38bbc69ee'
+OIDC_CLIENT_SECRETS =  curr + '/client_secret.json'
+OIDC_ID_TOKEN_COOKIE_SECURE = False
+OIDC_REQUIRE_VERIFIED_EMAIL = False
+OIDC_OPENID_REALM: 'alborotoproject'
+OIDC_INTROSPECTION_AUTH_METHOD: 'client_secret_post'
+CUSTOM_SECURITY_MANAGER = OIDCSecurityManager
+AUTH_USER_REGISTRATION = False # True
+AUTH_USER_REGISTRATION_ROLE = 'Gamma'
+'''
+--------------------------------------------------------------
+'''
