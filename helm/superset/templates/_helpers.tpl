@@ -55,7 +55,7 @@ Create chart name and version as used by the chart label.
         "issuer": "https://kc.alboroto.live/auth/realms/alborotoproject",
         "auth_uri": "https://kc.alboroto.live/auth/realms/alborotoproject/protocol/openid-connect/auth",
         "client_id": "superset",
-        "client_secret": "e444238e-c71d-4564-af12-5de38bbc69ee",
+        "client_secret": "64416c72-afbd-4333-a106-bf3d0f26d603",
         "redirect_uris": [
             "https://superset.alboroto.live/*"
         ],
@@ -173,14 +173,14 @@ import os
 '''
 curr  =  os.path.abspath(os.getcwd())
 AUTH_TYPE = AUTH_OID
-SECRET_KEY: 'e444238e-c71d-4564-af12-5de38bbc69ee'
-OIDC_CLIENT_SECRETS =  curr + '/client_secret.json'
+SECRET_KEY: '64416c72-afbd-4333-a106-bf3d0f26d603'
+OIDC_CLIENT_SECRETS =  curr + '/pythonpath/client_secret.json'
 OIDC_ID_TOKEN_COOKIE_SECURE = False
 OIDC_REQUIRE_VERIFIED_EMAIL = False
 OIDC_OPENID_REALM: 'alborotoproject'
 OIDC_INTROSPECTION_AUTH_METHOD: 'client_secret_post'
 CUSTOM_SECURITY_MANAGER = OIDCSecurityManager
-AUTH_USER_REGISTRATION = False # True
+AUTH_USER_REGISTRATION = True
 AUTH_USER_REGISTRATION_ROLE = 'Gamma'
 '''
 --------------------------------------------------------------

@@ -27,14 +27,16 @@ runAsUser: 0
 
 # Install additional packages and do any other bootstrap configuration in this script
 # For production clusters it's recommended to build own image with this step done in CI
+# bootstrapScript: |
+#   #!/bin/bash
+#   rm -rf /var/lib/apt/lists/* && \
+#   pip install \
+#     psycopg2==2.8.5 \
+#     redis==3.2.1 && \
+#   if [ ! -f ~/bootstrap ]; then echo "Running Superset with uid {{ .Values.runAsUser }}" > ~/bootstrap; fi
 bootstrapScript: |
   #!/bin/bash
-  rm -rf /var/lib/apt/lists/* && \
-  pip install \
-    psycopg2==2.8.5 \
-    redis==3.2.1 && \
   if [ ! -f ~/bootstrap ]; then echo "Running Superset with uid {{ .Values.runAsUser }}" > ~/bootstrap; fi
-
 ## The name of the secret which we will use to generate a superset_config.py file
 ## Note: this secret must have the key superset_config.py in it and can include other files as well
 ##
@@ -152,8 +154,8 @@ extraConfigMountPath: "/app/configs"
 
 image:
   repository: alvarogg777/superset
-  tag: 1.3.1-arm64
-  pullPolicy: IfNotPresent
+  tag: 1.3.1
+  pullPolicy: Always
 
 imagePullSecrets:
   - name: "regcred"
@@ -214,7 +216,7 @@ supersetNode:
     - "-c"
     - ". {{ .Values.configMountPath }}/superset_bootstrap.sh; /usr/bin/docker-entrypoint.sh"
   connections:
-    redis_host: '{{ template "superset.fullname" . }}-redis'
+    redis_host: 'super-redis'
     redis_port: "6379"
     db_host: $DB_HOST # '{{ template "superset.fullname" . }}-postgresql'
     db_port: $DB_PORT # "5432"
@@ -352,7 +354,6 @@ postgresql:
   existingSecret: mlflow.acid-minimal-cluster.credentials.postgresql.acid.zalan.do
   ## Name of the key containing the secret.
   existingSecretKey: password
-
   ##
   ## If you are bringing your own PostgreSQL, you should set postgresHost and
   ## also probably service.port, postgresqlUsername, postgresqlPassword, and postgresqlDatabase
@@ -365,14 +366,14 @@ postgresql:
   service:
     port: 5432
   ## PostgreSQL User to create.
-  postgresqlUsername: superset
-  ##
-  ## PostgreSQL Password for the new user.
-  ## If not set, a random 10 characters password will be used.
-  postgresqlPassword: superset
-  ##
-  ## PostgreSQL Database to create.
-  postgresqlDatabase: superset
+  # postgresqlUsername: superset
+  # ##
+  # ## PostgreSQL Password for the new user.
+  # ## If not set, a random 10 characters password will be used.
+  # postgresqlPassword: superset
+  # ##
+  # ## PostgreSQL Database to create.
+  # postgresqlDatabase: superset
   ##
   ## Persistent Volume Storage configuration.
   ## ref: https://kubernetes.io/docs/user-guide/persistent-volumes
@@ -396,6 +397,7 @@ redis:
   ## Set to false if bringing your own redis.
   enabled: true
   usePassword: false
+  fullnameOverride: "super-redis"
   ##
   ## The name of an existing secret that contains the redis password.
   existingSecret:

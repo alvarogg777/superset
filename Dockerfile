@@ -18,7 +18,7 @@
 ######################################################################
 # PY stage that simply does a pip install on our requirements
 ######################################################################
-ARG PY_VER=3.8.12
+ARG PY_VER=3.9.7-bullseye
 FROM python:${PY_VER} AS superset-py
 
 RUN mkdir /app \
@@ -28,7 +28,7 @@ RUN mkdir /app \
             default-libmysqlclient-dev \
             libpq-dev \
             libsasl2-dev \
-            libecpg-dev \
+            libecpg-dev unixodbc-dev libboost-all-dev \
         && rm -rf /var/lib/apt/lists/*
 
 # First, we just wanna install requirements, which will allow us to utilize the cache
@@ -73,7 +73,7 @@ RUN cd /app/superset-frontend \
 ######################################################################
 # Final lean image...
 ######################################################################
-ARG PY_VER=3.8.12
+ARG PY_VER=3.9.7-bullseye
 FROM python:${PY_VER} AS lean
 
 ENV LANG=C.UTF-8 \
@@ -91,10 +91,10 @@ RUN mkdir -p ${PYTHONPATH} \
             build-essential \
             default-libmysqlclient-dev \
             libsasl2-modules-gssapi-mit \
-            libpq-dev \
+            libpq-dev unixodbc-dev libboost-all-dev \
         && rm -rf /var/lib/apt/lists/*
 
-COPY --from=superset-py /usr/local/lib/python3.8/site-packages/ /usr/local/lib/python3.8/site-packages/
+COPY --from=superset-py /usr/local/lib/python3.9/site-packages/ /usr/local/lib/python3.9/site-packages/
 # Copying site-packages doesn't move the CLIs, so let's copy them one by one
 COPY --from=superset-py /usr/local/bin/gunicorn /usr/local/bin/celery /usr/local/bin/flask /usr/bin/
 COPY --from=superset-node /app/superset/static/assets /app/superset/static/assets
@@ -105,7 +105,11 @@ COPY superset /app/superset
 COPY setup.py MANIFEST.in README.md /app/
 RUN cd /app \
         && chown -R superset:superset * \
-        && pip install -e .
+        && pip --no-cache install -e . authlib psycopg2 redis pyarrow; 
+RUN apt-get update; apt-get install -y -V ca-certificates lsb-release wget && wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get update && apt-get install -y -V libarrow-dev libarrow-glib-dev libarrow-python-dev && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+RUN apt-get update; apt-get install python3-dev && rm -rf /var/lib/apt/lists/* /var/cache/apt/* && pip --no-cache install pybind11
+RUN pip --no-cache install turbodbc
+RUN pip --no-cache install flask-oidc
 
 COPY ./docker/docker-entrypoint.sh /usr/bin/
 
@@ -125,29 +129,47 @@ ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
 FROM lean AS dev
 ARG GECKODRIVER_VERSION=v0.28.0
 ARG FIREFOX_VERSION=88.0
+ARG TARGETPLATFORM
 
 COPY ./requirements/*.txt ./docker/requirements-*.txt/ /app/requirements/
 
 USER root
 
 RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends libnss3 libdbus-glib-1-2 libgtk-3-0 libx11-xcb1
+    && apt-get install -y --no-install-recommends libnss3 libdbus-glib-1-2 libgtk-3-0 libx11-xcb1 firefox-esr && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+RUN if [ "$TARGETPLATFORM" = "arm64" ]; then \
+    curl http://ports.ubuntu.com/pool/universe/f/firefox/firefox-geckodriver_93.0+build1-0ubuntu3_arm64.deb | dpkg-deb --fsys-tarfile - | tar -C / -x ./usr/bin/geckodriver; \
+  else \
+    wget --no-verbose -O /tmp/geckodriver.tar.gz https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckodriver-v0.30.0-linux64.tar.gz \
+    && rm -rf /opt/geckodriver \
+    && tar -C /opt -zxf /tmp/geckodriver.tar.gz \
+    && rm /tmp/geckodriver.tar.gz \
+    && mv /opt/geckodriver /opt/geckodriver-0.30.0 \
+    && chmod 755 /opt/geckodriver-0.30.0 \
+    && ln -fs /opt/geckodriver-0.30.0 /usr/bin/geckodriver; \
+  fi
 
 # Install GeckoDriver WebDriver
-RUN wget https://github.com/mozilla/geckodriver/releases/download/${GECKODRIVER_VERSION}/geckodriver-${GECKODRIVER_VERSION}-linux64.tar.gz -O /tmp/geckodriver.tar.gz && \
-    tar xvfz /tmp/geckodriver.tar.gz -C /tmp && \
-    mv /tmp/geckodriver /usr/local/bin/geckodriver && \
-    rm /tmp/geckodriver.tar.gz
+#RUN wget https://github.com/mozilla/geckodriver/releases/download/${GECKODRIVER_VERSION}/geckodriver-${GECKODRIVER_VERSION}-linux64.tar.gz -O /tmp/geckodriver.tar.gz && \
+#    tar xvfz /tmp/geckodriver.tar.gz -C /tmp && \
+#    mv /tmp/geckodriver /usr/local/bin/geckodriver && \
+#    rm /tmp/geckodriver.tar.gz
 
 # Install Firefox
-RUN wget https://download-installer.cdn.mozilla.net/pub/firefox/releases/${FIREFOX_VERSION}/linux-x86_64/en-US/firefox-${FIREFOX_VERSION}.tar.bz2 -O /opt/firefox.tar.bz2 && \
-    tar xvf /opt/firefox.tar.bz2 -C /opt && \
-    ln -s /opt/firefox/firefox /usr/local/bin/firefox
+#RUN wget https://download-installer.cdn.mozilla.net/pub/firefox/releases/${FIREFOX_VERSION}/linux-x86_64/en-US/firefox-${FIREFOX_VERSION}.tar.bz2 -O /opt/firefox.tar.bz2 && \
+#    tar xvf /opt/firefox.tar.bz2 -C /opt && \
+#    ln -s /opt/firefox/firefox /usr/local/bin/firefox
 
 # Cache everything for dev purposes...
 RUN cd /app \
-    && pip install --no-cache -r requirements/docker.txt \
+    && pip install --no-cache -r requirements/docker.txt authlib psycopg2 redis pyarrow ;
+RUN apt-get update; apt-get install -y -V ca-certificates lsb-release wget && wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get update && apt-get install -y -V libarrow-dev libarrow-glib-dev libarrow-python-dev && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+RUN apt-get update; apt-get install python3-dev && rm -rf /var/lib/apt/lists/* /var/cache/apt/* && pip --no-cache install pybind11
+RUN pip --no-cache install turbodbc \
     && pip install --no-cache -r requirements/requirements-local.txt || true
+RUN pip --no-cache install flask-oidc
 USER superset
 
 
@@ -163,3 +185,4 @@ COPY --chown=superset ./docker/docker-ci.sh /app/docker/
 RUN chmod a+x /app/docker/*.sh
 
 CMD /app/docker/docker-ci.sh
+

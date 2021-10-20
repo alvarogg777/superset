@@ -178,7 +178,7 @@ polyline==1.4.0
     # via apache-superset
 prison==0.2.1
     # via flask-appbuilder
-pyarrow==4.0.1
+pyarrow>=4.0.1
     # via apache-superset
 pycparser==2.20
     # via cffi
