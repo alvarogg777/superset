@@ -105,7 +105,7 @@ COPY setup.py MANIFEST.in README.md /app/
 RUN cd /app \
         && chown -R superset:superset * \
         && pip --no-cache install -e . authlib psycopg2 redis pyarrow flask-oidc pybind11; 
-RUN apt-get update; apt-get install -y -V ca-certificates lsb-release wget && wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get update && apt-get install -y -V libarrow-dev libarrow-glib-dev libarrow-python-dev && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+RUN apt-get update; apt-get install -y -V ca-certificates lsb-release wget && wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get update && apt-get install -y -V gir1.2-arrow-1.0=5.0.0-1 libarrow-dev=5.0.0-1 libarrow-glib-dev=5.0.0-1 libarrow-python-dev=5.0.0-1 && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 RUN pip --no-cache install turbodbc
 
 COPY ./docker/docker-entrypoint.sh /usr/bin/
@@ -161,7 +161,7 @@ RUN if [ "$TARGETPLATFORM" = "arm64" ]; then \
 # Cache everything for dev purposes...
 RUN cd /app \
     && pip install --no-cache -r requirements/docker.txt authlib psycopg2 redis pyarrow flask-oidc pybind11;
-RUN apt-get update; apt-get install -y -V ca-certificates lsb-release wget && wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get update && apt-get install -y -V libarrow-dev libarrow-glib-dev libarrow-python-dev && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+RUN apt-get update; apt-get install -y -V ca-certificates lsb-release wget && wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb && apt-get update && apt-get install -y -V gir1.2-arrow-1.0=5.0.0-1 libarrow-dev=5.0.0-1 libarrow-glib-dev=5.0.0-1 libarrow-python-dev=5.0.0-1 && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN pip --no-cache install turbodbc \
     && pip install --no-cache -r requirements/requirements-local.txt || true
