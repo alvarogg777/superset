@@ -16,6 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/* eslint-disable react-hooks/rules-of-hooks */
+import {
+  ColumnMeta,
+  InfoTooltipWithTrigger,
+  Metric,
+} from '@superset-ui/chart-controls';
 import {
   AdhocFilter,
   Behavior,
@@ -26,15 +32,11 @@ import {
   JsonResponse,
   styled,
   SupersetApiError,
-  t,
   SupersetClient,
+  t,
 } from '@superset-ui/core';
-import {
-  ColumnMeta,
-  InfoTooltipWithTrigger,
-  Metric,
-} from '@superset-ui/chart-controls';
 import { FormInstance } from 'antd/lib/form';
+import { isEqual } from 'lodash';
 import React, {
   forwardRef,
   useCallback,
@@ -44,53 +46,56 @@ import React, {
   useState,
 } from 'react';
 import { useSelector } from 'react-redux';
-import { isEqual, isEmpty } from 'lodash';
-import { FormItem } from 'src/components/Form';
-import { Input } from 'src/common/components';
-import { Select } from 'src/components';
-import { cacheWrapper } from 'src/utils/cacheWrapper';
-import AdhocFilterControl from 'src/explore/components/controls/FilterControl/AdhocFilterControl';
-import DateFilterControl from 'src/explore/components/controls/DateFilterControl';
-import { addDangerToast } from 'src/components/MessageToasts/actions';
-import { ClientErrorObject } from 'src/utils/getClientErrorObject';
-import Collapse from 'src/components/Collapse';
 import { getChartDataRequest } from 'src/chart/chartAction';
-import { FeatureFlag, isFeatureEnabled } from 'src/featureFlags';
-import { waitForAsyncData } from 'src/middleware/asyncEvent';
-import Tabs from 'src/components/Tabs';
-import Icons from 'src/components/Icons';
-import { Tooltip } from 'src/components/Tooltip';
-import { Radio } from 'src/components/Radio';
+import { Input, TextArea } from 'src/common/components';
+import { Select } from 'src/components';
+import Collapse from 'src/components/Collapse';
 import BasicErrorAlert from 'src/components/ErrorMessage/BasicErrorAlert';
+import { FormItem } from 'src/components/Form';
+import Icons from 'src/components/Icons';
+import Loading from 'src/components/Loading';
+import { addDangerToast } from 'src/components/MessageToasts/actions';
+import { Radio } from 'src/components/Radio';
+import Tabs from 'src/components/Tabs';
+import { Tooltip } from 'src/components/Tooltip';
 import {
   Chart,
   ChartsState,
   DatasourcesState,
   RootState,
 } from 'src/dashboard/types';
-import Loading from 'src/components/Loading';
-import { ColumnSelect } from './ColumnSelect';
-import { NativeFiltersForm, FilterRemoval } from '../types';
+import DateFilterControl from 'src/explore/components/controls/DateFilterControl';
+import AdhocFilterControl from 'src/explore/components/controls/FilterControl/AdhocFilterControl';
+import { FeatureFlag, isFeatureEnabled } from 'src/featureFlags';
+import { waitForAsyncData } from 'src/middleware/asyncEvent';
+import { cacheWrapper } from 'src/utils/cacheWrapper';
+import { ClientErrorObject } from 'src/utils/getClientErrorObject';
 import {
-  FILTER_SUPPORTED_TYPES,
-  hasTemporalColumns,
-  setNativeFilterFieldValues,
-  useForceUpdate,
-  mostUsedDataset,
-} from './utils';
-import { useBackendFormUpdate, useDefaultValue } from './state';
-import { getFormData } from '../../utils';
-import { Filter, NativeFilterType } from '../../types';
-import getControlItemsMap from './getControlItemsMap';
-import FilterScope from './FilterScope/FilterScope';
-import RemovedFilter from './RemovedFilter';
-import DefaultValue from './DefaultValue';
-import { CollapsibleControl } from './CollapsibleControl';
+  Filter,
+  NativeFilterType,
+} from 'src/dashboard/components/nativeFilters/types';
+import { SingleValueType } from 'src/filters/components/Range/SingleValueType';
+import { getFormData } from 'src/dashboard/components/nativeFilters/utils';
 import {
   CASCADING_FILTERS,
   getFiltersConfigModalTestId,
 } from '../FiltersConfigModal';
+import { FilterRemoval, NativeFiltersForm } from '../types';
+import { CollapsibleControl } from './CollapsibleControl';
+import { ColumnSelect } from './ColumnSelect';
 import DatasetSelect from './DatasetSelect';
+import DefaultValue from './DefaultValue';
+import FilterScope from './FilterScope/FilterScope';
+import getControlItemsMap from './getControlItemsMap';
+import RemovedFilter from './RemovedFilter';
+import { useBackendFormUpdate, useDefaultValue } from './state';
+import {
+  FILTER_SUPPORTED_TYPES,
+  hasTemporalColumns,
+  mostUsedDataset,
+  setNativeFilterFieldValues,
+  useForceUpdate,
+} from './utils';
 
 const TabPane = styled(Tabs.TabPane)`
   padding: ${({ theme }) => theme.gridUnit * 4}px 0px;
@@ -387,9 +392,9 @@ const FiltersConfigForm = (
     return currentDataset ? hasTemporalColumns(currentDataset) : true;
   }, [formFilter?.dataset?.value, loadedDatasets]);
 
-  // @ts-ignore
-  const hasDataset = !!nativeFilterItems[formFilter?.filterType]?.value
-    ?.datasourceCount;
+  const hasDataset =
+    // @ts-ignore
+    !!nativeFilterItems[formFilter?.filterType]?.value?.datasourceCount;
 
   const datasetId =
     formFilter?.dataset?.value ??
@@ -511,12 +516,8 @@ const FiltersConfigForm = (
     ...formFilter,
   });
 
-  const [
-    hasDefaultValue,
-    isRequired,
-    defaultValueTooltip,
-    setHasDefaultValue,
-  ] = useDefaultValue(formFilter, filterToEdit);
+  const [hasDefaultValue, isRequired, defaultValueTooltip, setHasDefaultValue] =
+    useDefaultValue(formFilter, filterToEdit);
 
   const showDataset =
     !datasetId || datasetDetails || formFilter?.dataset?.label;
@@ -544,6 +545,15 @@ const FiltersConfigForm = (
     !!filterToEdit?.adhoc_filters?.length ||
     !!filterToEdit?.time_range;
 
+  const hasEnableSingleValue =
+    formFilter?.controlValues?.enableSingleValue !== undefined ||
+    filterToEdit?.controlValues?.enableSingleValue !== undefined;
+
+  let enableSingleValue = filterToEdit?.controlValues?.enableSingleValue;
+  if (formFilter?.controlValues?.enableSingleMaxValue !== undefined) {
+    ({ enableSingleValue } = formFilter.controlValues);
+  }
+
   const hasSorting =
     typeof formFilter?.controlValues?.sortAscending === 'boolean' ||
     typeof filterToEdit?.controlValues?.sortAscending === 'boolean';
@@ -564,6 +574,17 @@ const FiltersConfigForm = (
       controlValues: {
         ...previous,
         sortAscending: value,
+      },
+    });
+    forceUpdate();
+  };
+
+  const onEnableSingleValueChanged = (value: SingleValueType | undefined) => {
+    const previous = form.getFieldValue('filters')?.[filterId].controlValues;
+    setNativeFilterFieldValues(form, filterId, {
+      controlValues: {
+        ...previous,
+        enableSingleValue: value,
       },
     });
     forceUpdate();
@@ -670,12 +691,13 @@ const FiltersConfigForm = (
   ]);
 
   useEffect(() => {
-    // Run only once when the control items are available
-    if (isActive && !isEmpty(controlItems)) {
+    // Run only once
+    if (isActive) {
       const hasCheckedAdvancedControl =
         hasParentFilter ||
         hasPreFilter ||
         hasSorting ||
+        hasEnableSingleValue ||
         Object.keys(controlItems)
           .filter(key => !BASIC_CONTROL_ITEMS.includes(key))
           .some(key => controlItems[key].checked);
@@ -966,6 +988,13 @@ const FiltersConfigForm = (
             {Object.keys(controlItems)
               .filter(key => BASIC_CONTROL_ITEMS.includes(key))
               .map(key => controlItems[key].element)}
+            <StyledFormItem
+              name={['filters', filterId, 'description']}
+              initialValue={filterToEdit?.description}
+              label={<StyledLabel>{t('Description')}</StyledLabel>}
+            >
+              <TextArea />
+            </StyledFormItem>
           </Collapse.Panel>
           {hasAdvancedSection && (
             <Collapse.Panel
@@ -1131,7 +1160,7 @@ const FiltersConfigForm = (
                   </CollapsibleControl>
                 </CleanFormItem>
               )}
-              {formFilter?.filterType !== 'filter_range' && (
+              {formFilter?.filterType !== 'filter_range' ? (
                 <CleanFormItem name={['filters', filterId, 'sortFilter']}>
                   <CollapsibleControl
                     initialValue={hasSorting}
@@ -1196,6 +1225,48 @@ const FiltersConfigForm = (
                         />
                       </StyledRowSubFormItem>
                     )}
+                  </CollapsibleControl>
+                </CleanFormItem>
+              ) : (
+                <CleanFormItem name={['filters', filterId, 'rangeFilter']}>
+                  <CollapsibleControl
+                    initialValue={hasEnableSingleValue}
+                    title={t('Single Value')}
+                    onChange={checked => {
+                      onEnableSingleValueChanged(
+                        checked ? SingleValueType.Exact : undefined,
+                      );
+                      formChanged();
+                    }}
+                  >
+                    <StyledRowFormItem
+                      name={[
+                        'filters',
+                        filterId,
+                        'controlValues',
+                        'enableSingleValue',
+                      ]}
+                      initialValue={enableSingleValue}
+                      label={
+                        <StyledLabel>{t('Single value type')}</StyledLabel>
+                      }
+                    >
+                      <Radio.Group
+                        onChange={value =>
+                          onEnableSingleValueChanged(value.target.value)
+                        }
+                      >
+                        <Radio value={SingleValueType.Minimum}>
+                          {t('Minimum')}
+                        </Radio>
+                        <Radio value={SingleValueType.Exact}>
+                          {t('Exact')}
+                        </Radio>
+                        <Radio value={SingleValueType.Maximum}>
+                          {t('Maximum')}
+                        </Radio>
+                      </Radio.Group>
+                    </StyledRowFormItem>
                   </CollapsibleControl>
                 </CleanFormItem>
               )}
