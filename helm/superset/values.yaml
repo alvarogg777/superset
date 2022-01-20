@@ -68,13 +68,13 @@ extraEnvRaw:
   - name: DB_PASS
     valueFrom:
       secretKeyRef:
-        name: mlflow.acid-minimal-cluster.credentials.postgresql.acid.zalan.do
-        key: password
+        name: storage-secrets
+        key: POSTGRES_USER
   - name: DB_USER
     valueFrom:
       secretKeyRef:
-        name: mlflow.acid-minimal-cluster.credentials.postgresql.acid.zalan.do
-        key: username
+        name: storage-secrets
+        key: POSTGRES_PASSWORD
 
 ## Extra environment variables to pass as secrets
 ##
@@ -154,8 +154,8 @@ extraConfigMountPath: "/app/configs"
 
 image:
   repository: alvarogg777/superset
-  tag: 1.3.1
-  pullPolicy: Always
+  tag: 1.3.2
+  pullPolicy: IfNotPresent
 
 imagePullSecrets:
   - name: "regcred"
